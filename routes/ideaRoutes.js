@@ -28,7 +28,7 @@ router.get('/:id', async (req, res, next) => {
       throw new Error('Idea not found');
     }
 
-    const idea = await Idea.findById(req.params.id);
+    const idea = await Idea.findById(id);
 
     if (!idea) {
       res.status(404);
@@ -45,10 +45,106 @@ router.get('/:id', async (req, res, next) => {
 // @route           POST /api/ideas
 // @description     Create new idea
 // @access          Public
-router.post('/', (req, res) => {
-  const { title } = req.body;
+router.post('/', async (req, res, next) => {
+  try {
+    const { title, summary, description, tags } = req.body;
 
-  res.send(title);
+    if (!title?.trim() || !summary?.trim() || !description?.trim()) {
+      res.status(400);
+      throw new Error('Title, summary, description are required');
+    }
+
+    const newIdea = new Idea({
+      title,
+      summary,
+      description,
+      tags:
+        typeof tags === 'string'
+          ? tags
+              .split(',')
+              .map((tag) => tag.trim())
+              .filter(Boolean)
+          : Array.isArray(tags)
+            ? tags
+            : [],
+    });
+
+    const savedIdea = await newIdea.save();
+    res.status(201).json(savedIdea);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+});
+
+// @route           DELETE /api/ideas/:id
+// @description     Delete idea
+// @access          Public
+router.delete('/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(404);
+      throw new Error('Idea not found');
+    }
+
+    const idea = await Idea.findByIdAndDelete(id);
+
+    if (!idea) {
+      res.status(404);
+      throw new Error('Idea not found');
+    }
+
+    res.json({ message: 'Idea deleted successfully' });
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
+});
+
+// @route           PUT /api/ideas/:id
+// @description     Update idea
+// @access          Public
+router.put('/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(404);
+      throw new Error('Idea not found');
+    }
+
+    const { title, summary, description, tags } = req.body;
+
+    if (!title?.trim() || !summary?.trim() || !description?.trim()) {
+      res.status(400);
+      throw new Error('Title, summary, description are required');
+    }
+
+    const updatedIdea = await Idea.findByIdAndUpdate(
+      id,
+      {
+        title,
+        summary,
+        description,
+        tags: Array.isArray(tags)
+          ? tags
+          : tags.split(',').map((tag) => tag.trim()),
+      },
+      { new: true, runValidators: true },
+    );
+
+    if (!updatedIdea) {
+      res.status(404);
+      throw new Error('Idea not found');
+    }
+
+    res.json(updatedIdea);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
 });
 
 export default router;
